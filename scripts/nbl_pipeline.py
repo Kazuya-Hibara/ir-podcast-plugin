@@ -18,12 +18,17 @@ from pathlib import Path
 
 
 def _resolve_nbl_bin() -> str:
-    """Locate `notebooklm` CLI. Prefer venv neighbor of sys.executable, else $PATH."""
+    """Locate `notebooklm` CLI. Try in order: venv neighbor → $PATH → ~/.local/bin (pipx default)."""
     candidate = Path(sys.executable).parent / "notebooklm"
     if candidate.exists():
         return str(candidate)
     found = shutil.which("notebooklm")
-    return found or "notebooklm"
+    if found:
+        return found
+    pipx_path = Path.home() / ".local" / "bin" / "notebooklm"
+    if pipx_path.exists():
+        return str(pipx_path)
+    return "notebooklm"
 
 
 NBL_BIN = _resolve_nbl_bin()

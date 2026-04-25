@@ -54,21 +54,25 @@ NotebookLM source 上限 = 200MB / source、500K words / source。大型 PDF は
 
 ### Step 5: NotebookLM Notebook Creation
 ```bash
+# Resolve notebooklm CLI (pipx installs to ~/.local/bin which may be missing from non-login shell PATH)
+NBL=$(command -v notebooklm 2>/dev/null || echo "$HOME/.local/bin/notebooklm")
+
 # Envelope: `create --json` returns top-level {"id": ...}
-NOTEBOOK_ID=$(notebooklm create "<ticker> IR <date>" --json | jq -r .id)
+NOTEBOOK_ID=$($NBL create "<ticker> IR <date>" --json | jq -r .id)
 for f in ./downloads/<ticker>/*.{pdf,md,txt}; do
   # Envelope: `source add --json` returns {"source": {"id": ...}}
-  SRC=$(notebooklm source add "$f" -n "$NOTEBOOK_ID" --type file --json | jq -r .source.id)
-  notebooklm source wait "$SRC" -n "$NOTEBOOK_ID" --timeout 600
+  SRC=$($NBL source add "$f" -n "$NOTEBOOK_ID" --type file --json | jq -r .source.id)
+  $NBL source wait "$SRC" -n "$NOTEBOOK_ID" --timeout 600
 done
 ```
 
 ### Step 6: Audio Overview Generation
 ```bash
+# (NBL resolved in Step 5 — same shell)
 # Envelope: `generate audio --json` returns FLAT {"task_id": ..., "status": "pending"}
 # Split from --wait to bypass the 300s CLI internal timeout (audio gen takes 15-25 min)
-TASK_ID=$(notebooklm generate audio -n "$NOTEBOOK_ID" --language <ja|en> --json | jq -r .task_id)
-notebooklm artifact wait "$TASK_ID" -n "$NOTEBOOK_ID" --timeout 1800
+TASK_ID=$($NBL generate audio -n "$NOTEBOOK_ID" --language <ja|en> --json | jq -r .task_id)
+$NBL artifact wait "$TASK_ID" -n "$NOTEBOOK_ID" --timeout 1800
 ```
 
 `--language` default は ticker から判定 (US → en, JP → ja)。`/ir-podcast AAPL --lang ja` で英文資料を日本語ナレーションに変換可能。
