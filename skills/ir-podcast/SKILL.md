@@ -54,20 +54,26 @@ NotebookLM source 上限 = 200MB / source、500K words / source。大型 PDF は
 
 ### Step 5: NotebookLM Notebook Creation
 ```bash
-NOTEBOOK_ID=$(notebooklm create -t "<ticker> IR <date>" --json | jq -r .id)
-for f in ./downloads/<ticker>/*.{pdf,md}; do
-  notebooklm source add -n $NOTEBOOK_ID -f "$f"
+# Envelope: `create --json` returns top-level {"id": ...}
+NOTEBOOK_ID=$(notebooklm create "<ticker> IR <date>" --json | jq -r .id)
+for f in ./downloads/<ticker>/*.{pdf,md,txt}; do
+  # Envelope: `source add --json` returns {"source": {"id": ...}}
+  SRC=$(notebooklm source add "$f" -n "$NOTEBOOK_ID" --type file --json | jq -r .source.id)
+  notebooklm source wait "$SRC" -n "$NOTEBOOK_ID" --timeout 600
 done
-notebooklm source wait -n $NOTEBOOK_ID
 ```
 
 ### Step 6: Audio Overview Generation
 ```bash
-notebooklm generate audio -n $NOTEBOOK_ID --lang <ja|en>
-notebooklm artifact wait -n $NOTEBOOK_ID --type audio
+# Envelope: `generate audio --json` returns FLAT {"task_id": ..., "status": "pending"}
+# Split from --wait to bypass the 300s CLI internal timeout (audio gen takes 15-25 min)
+TASK_ID=$(notebooklm generate audio -n "$NOTEBOOK_ID" --language <ja|en> --json | jq -r .task_id)
+notebooklm artifact wait "$TASK_ID" -n "$NOTEBOOK_ID" --timeout 1800
 ```
 
-`--lang` default は ticker から判定 (US → en, JP → ja)。`/ir-podcast AAPL --lang ja` で英文資料を日本語ナレーションに変換可能。
+`--language` default は ticker から判定 (US → en, JP → ja)。`/ir-podcast AAPL --lang ja` で英文資料を日本語ナレーションに変換可能。
+
+> **CLI envelope drift (v0.3.4)**: 3 sub-commands return 3 different shapes — nested `{"source":{"id":...}}`, top-level `{"id":...}`, flat `{"task_id":...}`. Wrappers must handle all 3. See `~/.claude/projects/-Users-kazuya-projects-ir-podcast-plugin/memory/tool_notebooklm_cli.md` and `scripts/test_nbl_pipeline.py` for fixtures.
 
 ### Step 7: Download
 ```bash

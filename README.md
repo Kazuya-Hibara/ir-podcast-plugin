@@ -62,6 +62,8 @@ Claude Code 内で:
 ```
 
 > ⚠️ Install 後、**Claude Code を一度 restart** (`/exit` → 再起動) すると `/ir-podcast` 等の slash command が `/help` に表示される。
+>
+> ⚠️ `/plugin marketplace add` + `/plugin install` を **両方** 実行しないと `installed_plugins.json` にエントリが入らず、ターミナル入力での short alias `/ir-podcast` は登録されない (cache だけ作られる "partial install" 状態)。Skill tool 経由 (`ir-podcast-plugin:ir-podcast`) は cache だけでも動くので、project root から起動する Claude Code 内では問題なし。
 
 #### 2. 依存セットアップ
 
@@ -154,9 +156,9 @@ v0.1.0 (現在):
 - [x] NotebookLM E2E smoke (AAPL 10-K → 21 MB m4a "Apple's 416 Billion Dollar Empire Under Siege"、生成 ~20 min)
 
 v0.2.0 (予定):
-- TDnet (適時開示) 取得
 - 前回 podcast との差分検出 (新規開示のみ podcast 化)
 - Slack / Discord 通知
+- 統合報告書 (Annual Report) の自動分割 (NotebookLM の 200 MB 上限対応)
 
 v1.0.0 (将来):
 - 韓国 (DART) / 香港 (HKEX) 対応

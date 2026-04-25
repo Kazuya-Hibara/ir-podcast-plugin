@@ -129,23 +129,29 @@ def add_sources(notebook_id: str, files: list[Path]) -> None:
         run_nbl(["source", "wait", source_id, "-n", notebook_id, "--timeout", "600"])
 
 
-def generate_audio(notebook_id: str, lang: str = "en") -> None:
-    """Audio Overview 生成をリクエストし、完了を待つ.
-
-    `generate audio --wait` の internal timeout は 300s で短いので、
-    no-wait で task_id を取得してから `artifact wait --timeout 1800` で polling する.
-    """
+def _trigger_audio(notebook_id: str, lang: str = "en") -> str:
+    """Trigger Audio Overview generation, return task_id (no wait)."""
     stdout = run_nbl([
         "generate", "audio",
         "-n", notebook_id,
         "--language", lang,
         "--json",
     ])
-    task_id = _extract_id(stdout, "task", "artifact", "audio")
+    return _extract_id(stdout, "task", "artifact", "audio")
+
+
+def _wait_audio(notebook_id: str, task_id: str, timeout: int = 1800) -> None:
+    """Block until artifact is ready. CLI internal timeout is 300s, override here."""
     run_nbl(
-        ["artifact", "wait", task_id, "-n", notebook_id, "--timeout", "1800"],
+        ["artifact", "wait", task_id, "-n", notebook_id, "--timeout", str(timeout)],
         capture=False,
     )
+
+
+def generate_audio(notebook_id: str, lang: str = "en") -> None:
+    """Compatibility wrapper: trigger + wait. Prefer _trigger_audio + _wait_audio for resumable flows."""
+    task_id = _trigger_audio(notebook_id, lang=lang)
+    _wait_audio(notebook_id, task_id)
 
 
 def download_audio(notebook_id: str, output_path: Path) -> Path:
@@ -155,13 +161,40 @@ def download_audio(notebook_id: str, output_path: Path) -> Path:
     return output_path
 
 
+def _state_path(output: Path) -> Path:
+    """Sibling state file: <output>.state.json (e.g. AAPL-...mp3.state.json)."""
+    return output.with_suffix(output.suffix + ".state.json")
+
+
+def _load_state(output: Path) -> dict:
+    p = _state_path(output)
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_state(output: Path, **kwargs) -> None:
+    p = _state_path(output)
+    state = _load_state(output)
+    state.update(kwargs)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(state, indent=2))
+
+
 def pipeline(
     title: str,
     sources: list[Path],
     lang: str,
     output_path: Path,
+    resume: bool = False,
 ) -> Path:
-    """End-to-end pipeline: create → add → generate → download.
+    """End-to-end pipeline: create → add → trigger → wait → download.
+
+    State persisted to <output>.state.json after each milestone. With resume=True,
+    skips already-completed steps. State file removed on success.
 
     Returns: path to downloaded audio file.
     """
@@ -171,17 +204,41 @@ def pipeline(
         )
         sys.exit(1)
 
-    notebook_id = create_notebook(title)
-    print(f"Created notebook: {notebook_id}", file=sys.stderr)
+    state = _load_state(output_path) if resume else {}
 
-    add_sources(notebook_id, sources)
-    print(f"Added {len(sources)} sources", file=sys.stderr)
+    notebook_id = state.get("notebook_id")
+    if notebook_id:
+        print(f"Resumed notebook: {notebook_id}", file=sys.stderr)
+    else:
+        notebook_id = create_notebook(title)
+        _save_state(output_path, notebook_id=notebook_id)
+        print(f"Created notebook: {notebook_id}", file=sys.stderr)
 
-    generate_audio(notebook_id, lang=lang)
+    if state.get("sources_added"):
+        print("Sources already added (resumed)", file=sys.stderr)
+    else:
+        add_sources(notebook_id, sources)
+        _save_state(output_path, sources_added=True)
+        print(f"Added {len(sources)} sources", file=sys.stderr)
+
+    task_id = state.get("task_id")
+    if task_id:
+        print(f"Resumed audio task: {task_id}", file=sys.stderr)
+    else:
+        task_id = _trigger_audio(notebook_id, lang=lang)
+        _save_state(output_path, task_id=task_id)
+        print(f"Audio task triggered: {task_id}", file=sys.stderr)
+
+    _wait_audio(notebook_id, task_id)
     print("Audio generated", file=sys.stderr)
 
     audio_path = download_audio(notebook_id, output_path)
     print(f"Downloaded: {audio_path}", file=sys.stderr)
+
+    # Cleanup state on success (subsequent runs start fresh unless --resume re-attaches)
+    state_file = _state_path(output_path)
+    if state_file.exists():
+        state_file.unlink()
 
     return audio_path
 
@@ -208,6 +265,11 @@ def main() -> int:
         action="store_true",
         help="Pre-flight auth check only",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from <output>.state.json if present (skip already-completed steps)",
+    )
     args = parser.parse_args()
 
     if args.check:
@@ -220,7 +282,7 @@ def main() -> int:
             sys.stderr.write(f"ERROR: source not found: {s}\n")
             return 1
 
-    pipeline(args.title, args.sources, args.lang, args.output)
+    pipeline(args.title, args.sources, args.lang, args.output, resume=args.resume)
     return 0
 
 

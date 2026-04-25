@@ -57,9 +57,10 @@ NotebookLM Audio Overview の音声言語。
 1. Company Resolution (ticker → CIK or 証券コード)
 2. `ir-source-discovery` agent → IR doc URL list (manifest JSON)
 3. Document download:
-   - US: `scripts/edgar_fetch.py` (EDGAR API)
-   - JP (default): `scripts/ir_site_fetch.py` (会社 IR サイト直 DL、key 不要)
-   - JP (optional): `scripts/edinet_fetch.py` (`EDINET_API_KEY` set 時のみ)
+   - US: `scripts/edgar_fetch.py` (EDGAR API、`EDGAR_USER_AGENT` のみ必要)
+   - JP (primary): `scripts/tdnet_fetch.py` (TDnet 適時開示、no auth、~30 日 retention)
+   - JP (fallback): `scripts/ir_site_fetch.py` (TDnet 空時、Firecrawl で会社 IR サイト直 DL)
+   - JP (opt-in): `scripts/edinet_fetch.py` (`EDINET_API_KEY` set 時のみ、歴史的有報用)
 4. `ir-document-analyzer` agent → 章立て抽出 + サイズ最適化
 5. `notebooklm create` + `source add` → NotebookLM upload
 6. `notebooklm generate audio --lang <lang>` → Audio Overview 生成
@@ -78,8 +79,8 @@ NotebookLM Audio Overview の音声言語。
 1. `pip install -r requirements.txt && playwright install chromium`
 2. `notebooklm login` (Google アカウント認証)
 3. `export EDGAR_USER_AGENT="<name> <email>"` (US 利用時)
-4. `firecrawl --version` で CLI が install 済み確認 (JP 直 DL に必須)
-5. `export EDINET_API_KEY="<key>"` — **optional**。JP fallback として使う場合のみ。default 経路では不要
+4. JP primary 経路 (TDnet) は追加 setup 不要。fallback で会社 IR サイト直 DL を使う場合は `firecrawl --version` で CLI 確認
+5. `export EDINET_API_KEY="<key>"` — **optional**。歴史的有報まで欲しい時のみ。primary/fallback 経路では不要
 
 詳細: `docs/INSTALL.md` + `docs/AUTH.md`
 
