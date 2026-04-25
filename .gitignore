@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# NotebookLM cookie auth (local cache, never commit)
+.notebooklm/
+storage_state.json
+
+# Firecrawl scratch output
+.firecrawl/
+
+# Generated reports / podcast files
+reports/
+downloads/
+*.wav
+*.mp3
+*.m4a
+
+# Playwright browsers (installed via pipx, no need to vendor)
+playwright-browsers/
+.playwright/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Tooling caches (OMC harness state, etc.)
+.omc/
+.claude/state/

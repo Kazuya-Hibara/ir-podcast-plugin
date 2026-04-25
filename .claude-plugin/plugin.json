@@ -1,0 +1,25 @@
+{
+  "name": "ir-podcast-plugin",
+  "version": "0.1.0",
+  "description": "IR資料 (10-K/10-Q/有報/決算短信) をNotebookLMのAudio Overview (podcast) に自動変換するClaude Code plugin。米国(SEC EDGAR)・日本(EDINET)対応。",
+  "author": {
+    "name": "Kazuya-Hibara"
+  },
+  "repository": "https://github.com/Kazuya-Hibara/ir-podcast-plugin",
+  "homepage": "https://github.com/Kazuya-Hibara/ir-podcast-plugin",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "notebooklm",
+    "ir",
+    "investor-relations",
+    "podcast",
+    "edgar",
+    "edinet",
+    "audio-overview",
+    "business-study"
+  ],
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "commands": "./commands/"
+}

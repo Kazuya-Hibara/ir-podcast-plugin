@@ -1,0 +1,34 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "ir-podcast",
+  "description": "IR資料 → NotebookLM podcast 自動化パイプライン (ビジネス勉強用)",
+  "owner": {
+    "name": "Kazuya-Hibara"
+  },
+  "plugins": [
+    {
+      "name": "ir-podcast-plugin",
+      "description": "上場企業のIR資料 (米国 10-K/10-Q、日本 有価証券報告書/決算短信) を取得し、NotebookLM Audio Overview で podcast 化。On-demand command で単発実行、ユーザー側でcron/launchd/GitHub Actions と連携可能。",
+      "version": "0.1.0",
+      "author": {
+        "name": "Kazuya-Hibara"
+      },
+      "source": "./",
+      "category": "research",
+      "homepage": "https://github.com/Kazuya-Hibara/ir-podcast-plugin",
+      "tags": [
+        "notebooklm",
+        "ir",
+        "investor-relations",
+        "podcast",
+        "study",
+        "edgar",
+        "edinet",
+        "business",
+        "japanese",
+        "us-stocks"
+      ]
+    }
+  ],
+  "version": "0.1.0"
+}

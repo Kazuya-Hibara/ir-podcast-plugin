@@ -1,0 +1,84 @@
+# Sample GitHub Actions workflow for weekly IR podcast generation.
+#
+# Setup:
+#   1. このファイルを .github/workflows/weekly-ir-podcast.yml にコピー (forked repo or your own)
+#   2. Repository Secrets に以下を登録:
+#      - ANTHROPIC_API_KEY
+#      - EDGAR_USER_AGENT
+#      - EDINET_API_KEY (JP 利用時)
+#      - NOTEBOOKLM_STORAGE_STATE (notebooklm login 後の ~/.notebooklm/storage_state.json 全体)
+#   3. Schedule を好みに調整
+
+name: Weekly IR Podcast Generation
+
+on:
+  schedule:
+    # 毎週日曜 22:00 UTC = 月曜 7:00 JST
+    - cron: '0 22 * * 0'
+  workflow_dispatch:
+    inputs:
+      tickers:
+        description: 'Comma-separated tickers (override watchlist)'
+        required: false
+        default: ''
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        ticker:
+          - AAPL
+          - MSFT
+          - GOOGL
+          - "7203"  # Toyota
+          - "7267"  # Honda
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Install plugin and Python deps
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium --with-deps
+
+      - name: Restore NotebookLM cookie
+        run: |
+          mkdir -p ~/.notebooklm
+          echo '${{ secrets.NOTEBOOKLM_STORAGE_STATE }}' > ~/.notebooklm/storage_state.json
+          notebooklm auth check --test
+
+      - name: Generate podcast for ${{ matrix.ticker }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EDGAR_USER_AGENT: ${{ secrets.EDGAR_USER_AGENT }}
+          EDINET_API_KEY: ${{ secrets.EDINET_API_KEY }}
+        run: |
+          claude -p "/ir-podcast ${{ matrix.ticker }} --depth quick"
+
+      - name: Upload audio as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ir-podcast-${{ matrix.ticker }}
+          path: ~/Downloads/ir-podcasts/*.wav
+          retention-days: 30
+          if-no-files-found: warn
+
+      # オプション: S3 upload, Slack notify, etc. を追加
+      # - name: Upload to S3
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   ...

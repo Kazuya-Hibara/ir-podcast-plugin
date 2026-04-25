@@ -1,0 +1,50 @@
+# Watchlist サンプル設定
+#
+# 使い方:
+#   1. このファイルを ~/.config/ir-podcast/companies.yaml にコピー
+#   2. 自分の watchlist に編集
+#   3. cron / launchd / GitHub Actions から参照 (docs/SCHEDULE.md)
+#
+# ticker 抽出 (全社):
+#   yq '.watchlist[][]' companies.yaml | paste -sd,
+#
+# ticker 抽出 (特定 group):
+#   yq '.watchlist.us_mega_cap[]' companies.yaml | paste -sd,
+
+watchlist:
+  us_mega_cap:
+    - AAPL    # Apple
+    - MSFT    # Microsoft
+    - GOOGL   # Alphabet
+    - AMZN    # Amazon
+    - META    # Meta Platforms
+    - NVDA    # NVIDIA
+
+  us_finance:
+    - JPM     # JPMorgan Chase
+    - GS      # Goldman Sachs
+    - BAC     # Bank of America
+
+  jp_auto:
+    - "7203"  # Toyota
+    - "7267"  # Honda
+    - "7269"  # Suzuki
+
+  jp_tech:
+    - "6758"  # Sony Group
+    - "9984"  # SoftBank Group
+    - "6857"  # Advantest
+    - "8035"  # Tokyo Electron
+
+  jp_consumer:
+    - "9983"  # Fast Retailing
+    - "4661"  # Oriental Land
+    - "2914"  # Japan Tobacco
+
+# settings (将来拡張用、現 v0.1.0 では未使用)
+defaults:
+  depth: quick
+  parallel: 3
+  lang_us: en
+  lang_jp: ja
+  output_dir: ~/Downloads/ir-podcasts
