@@ -144,7 +144,7 @@ v0.1.0 (現在):
 - [x] Python script 本体実装 (`scripts/edgar_fetch.py`, `edinet_fetch.py`, `nbl_pipeline.py`)
 - [x] EDGAR live verify (AAPL → CIK 0000320193 → 10-K/10-Q URL 取得)
 - [ ] EDINET live verify (要 API key)
-- [ ] NotebookLM E2E smoke (`/ir-podcast AAPL --depth quick`)
+- [x] NotebookLM E2E smoke (AAPL 10-K → 21 MB m4a "Apple's 416 Billion Dollar Empire Under Siege"、生成 ~20 min)
 
 v0.2.0 (予定):
 - TDnet (適時開示) 取得
