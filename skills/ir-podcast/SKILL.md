@@ -39,10 +39,11 @@ Agent({
 取得した URL list から実 file を download。
 
 - US: `python scripts/edgar_fetch.py --cik <CIK> --types 10-K,10-Q,8-K --depth <quick|deep>` (EDGAR API 経由、`EDGAR_USER_AGENT` のみ必要)
-- JP (default): `python scripts/ir_site_fetch.py --manifest ./manifests/<ticker>-<ts>.json --output-dir ./downloads/` (会社 IR サイト直 DL、API key 不要)
-- JP (optional fallback): `python scripts/edinet_fetch.py --code <4-digit> --types yuho,kessan-tanshin --depth <quick|deep>` ⇒ `EDINET_API_KEY` env var が **set されている時のみ** activate
+- JP (Step 3a, primary — TDnet): `python scripts/tdnet_fetch.py --code <4-digit> --types kessan-tanshin,setsumei --depth <quick|deep>` (yanoshin webapi 経由、no auth、~30 日 retention)
+- JP (Step 3b, fallback — Firecrawl 直 DL): TDnet が空 (retention 切れ / 当該 type なし) の場合、ir-source-discovery agent が会社 IR サイトを Firecrawl で discovery → manifest JSON 出力 → `python scripts/ir_site_fetch.py --manifest ./manifests/<ticker>-<ts>.json --output-dir ./downloads/`
+- JP (Step 3c, opt-in — EDINET): `python scripts/edinet_fetch.py --code <4-digit> --types yuho,kessan-tanshin --depth <quick|deep>` ⇒ `EDINET_API_KEY` env var が **set されている時のみ** activate (歴史的有報まで網羅したい時のみ)
 
-JP は ir-source-discovery agent が manifest JSON を吐くので、`ir_site_fetch.py` は manifest を消費して PDF を全件 DL する薄い wrapper。
+JP routing の判断: 直近の決算開示が欲しい → 3a で 1-2 sec で終わる。古い 有報 / 統合報告書 → 3b (会社 IR site) または 3c (EDINET)。
 
 Output: `./downloads/<ticker>/<date>-<type>.{pdf,html}`
 
