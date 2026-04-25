@@ -18,8 +18,5 @@
     "edinet",
     "audio-overview",
     "business-study"
-  ],
-  "skills": "./skills/",
-  "agents": "./agents/",
-  "commands": "./commands/"
+  ]
 }
