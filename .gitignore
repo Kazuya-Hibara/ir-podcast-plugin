@@ -51,4 +51,4 @@ logs/
 
 # Tooling caches (OMC harness state, etc.)
 .omc/
-.claude/state/
+.claude/
