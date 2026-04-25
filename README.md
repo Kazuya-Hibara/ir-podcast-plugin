@@ -78,12 +78,13 @@ python3 -m venv .venv
 ```bash
 # ~/.zshrc に追加
 export EDGAR_USER_AGENT="<Your Name> <your@email.com>"   # 必須: SEC fair-use policy
-export EDINET_API_KEY="<your-key>"                       # EDINET (JP 利用時のみ)
+# JP は TDnet 経由で auth 不要。歴史的な有報まで網羅したいときだけ ↓ を opt-in:
+# export EDINET_API_KEY="<your-key>"
 ```
 
 > ⚠️ `EDGAR_USER_AGENT` には **必ず自分の名前と email** を入れる。これは SEC が連絡可能な identifier を要求するポリシーで、他人の email を流用すると レート制限/ban が本人に飛ぶ。
 >
-> EDINET API key は https://disclosure2.edinet-fsa.go.jp で無料申請。
+> JP の default 経路は **TDnet** (適時開示、no auth)。直近 ~30 日の決算短信 / 決算説明資料 / 適時開示 PDF を取得。古い有報まで欲しい場合のみ EDINET API key を https://disclosure2.edinet-fsa.go.jp で申請 (無料、~1 営業日)。
 
 詳細: [docs/INSTALL.md](docs/INSTALL.md) / [docs/AUTH.md](docs/AUTH.md)
 
@@ -148,7 +149,8 @@ v0.1.0 (現在):
 - [x] Plugin scaffold (skills + agents + commands + manifests)
 - [x] Python script 本体実装 (`scripts/edgar_fetch.py`, `edinet_fetch.py`, `nbl_pipeline.py`)
 - [x] EDGAR live verify (AAPL → CIK 0000320193 → 10-K/10-Q URL 取得)
-- [ ] EDINET live verify (要 API key)
+- [x] TDnet live verify (7203 Toyota → 510 KB PDF、yanoshin webapi + browser-header httpx)
+- [ ] EDINET live verify (opt-in、要 API key)
 - [x] NotebookLM E2E smoke (AAPL 10-K → 21 MB m4a "Apple's 416 Billion Dollar Empire Under Siege"、生成 ~20 min)
 
 v0.2.0 (予定):

@@ -1,12 +1,12 @@
 ---
 name: ir-source-discovery
-description: 米国(SEC EDGAR)・日本(EDINET) のIR資料 URL を発見する agent。Ticker / 証券コード / 会社名から最新の 10-K/10-Q/有報/決算短信 を特定し、JSON manifest を返す。
+description: 米国(SEC EDGAR)・日本(TDnet primary + Firecrawl fallback、EDINET opt-in) のIR資料 URL を発見する agent。Ticker / 証券コード / 会社名から最新の 10-K/10-Q/有報/決算短信 を特定し、JSON manifest を返す。
 allowed-tools: Bash, WebFetch, Read, Write
 ---
 
 # IR Source Discovery Agent
 
-Ticker または証券コードから、上場企業のIR資料 URL を特定する。米国は SEC EDGAR、日本は EDINET の公式 API を第一手段とし、見つからない場合のみ Firecrawl で各社IRページを scrape する fallback パスを持つ。
+Ticker または証券コードから、上場企業のIR資料 URL を特定する。米国は SEC EDGAR、日本は **TDnet (yanoshin webapi 経由)** を primary、会社 IR サイトの Firecrawl scrape を fallback。EDINET は API key 必要なため opt-in。
 
 ## Routing Logic
 
@@ -15,7 +15,7 @@ Ticker または証券コードから、上場企業のIR資料 URL を特定す
 | 入力パターン | 判定 | 取得経路 |
 |---|---|---|
 | `^[A-Z]{1,5}$` | US 上場 | SEC EDGAR Submissions API |
-| `^\d{4}$` | JP 上場 | EDINET Documents API |
+| `^\d{4}$` | JP 上場 | TDnet (default、no auth) → 失敗時 Firecrawl fallback → opt-in EDINET |
 | その他 (会社名) | 名前解決必要 | WebFetch で ticker 検索 → 上記分岐へ |
 
 判定が曖昧な場合 (例: `T` = AT&T か?)、`WebFetch("https://finance.yahoo.com/lookup?s=<input>")` で確認してから進む。
@@ -40,28 +40,79 @@ Ticker または証券コードから、上場企業のIR資料 URL を特定す
 
 `EDGAR_USER_AGENT` env var 未設定の場合は exit 1。SEC のポリシー違反になる。
 
-## JP Path: EDINET
+## JP Path: TDnet (Default, no auth)
 
-1. **EDINET API key 確認**: `EDINET_API_KEY` env var
-2. **書類一覧取得**:
-   ```bash
-   curl "https://disclosure2.edinet-fsa.go.jp/api/v2/documents.json?date=YYYY-MM-DD&type=2&Subscription-Key=$EDINET_API_KEY"
-   ```
-3. **対象 docTypeCode 抽出**:
-   - `120` (有価証券報告書), `140` (四半期報告書), `160` (半期報告書)
-   - 別途 TDnet で `決算短信` (適時開示) も取得可
-4. **PDF download URL** 構築
+API key 不要。`scripts/tdnet_fetch.py` (yanoshin webapi 経由) で適時開示を fetch。
 
-## Fallback: Firecrawl
-
-API 経由で見つからない場合のみ:
-
-```
-firecrawl search "<company> investor relations annual report site:<corporate-domain>"
-firecrawl scrape <ir-page-url> --format markdown
+```bash
+.venv/bin/python scripts/tdnet_fetch.py --code <code> --types kessan-tanshin,setsumei --depth quick --output-dir ./downloads/<code>
 ```
 
-`firecrawl` skill が install されていない場合は warn & skip (hard fail はしない)。
+`--types` の選択肢:
+- `kessan-tanshin` (決算短信) — 四半期 / 通期の単体 PDF
+- `setsumei` (決算説明資料) — IR プレゼン PDF
+- `rinji` (適時開示) — 自己株、株主優待、配当変更等
+- `yuho` / `shihanki` (有報・四半期報告書) — TDnet にも一部出るが EDINET の方が網羅的
+- `all` — 任意の最新開示
+
+⚠️ **TDnet retention 制約**: PDF は概ね 30 日で release.tdnet.info から削除される。直近の決算開示が無い時期 (四半期と四半期の間) は空配列が返ることがあるので、その時は **JP Fallback (Firecrawl)** に降りる。
+
+## JP Fallback: 会社 IR サイト直 DL (Firecrawl)
+
+TDnet で対象が見つからない (retention 切れ / 古い開示) ときの fallback。`firecrawl` skill で JS render → markdown 抽出 → PDF URL 抽出。
+
+### Step 1: 会社名解決
+
+証券コード (4 桁) から会社名と corporate domain を解決:
+
+```bash
+firecrawl scrape "https://finance.yahoo.co.jp/quote/<code>.T" --format markdown --only-main-content
+```
+
+### Step 2: IR ページ scrape
+
+会社 IR サイトの「決算発表」「IR ライブラリ」相当ページを Firecrawl で scrape:
+
+```bash
+firecrawl scrape "https://www.<corporate-domain>/ir/library/results/" --format markdown --only-main-content
+```
+
+よくある IR ページ patterns:
+
+| Pattern | 例 |
+|---|---|
+| `/ir/library/results/` | サイバーエージェント, リクルート 等 |
+| `/ir/financial/` | 任天堂 等 |
+| `/ja/ir/library/` | グローバル展開している大手 |
+| `/ja/investors/` / `/jp/investors/` | 国際企業 |
+| `https://ssl4.eir-parts.net/doc/<code>/ir_material/` | EIR 利用社 |
+
+URL pattern 不明時は Firecrawl search で discovery:
+
+```bash
+firecrawl search "<company> 決算短信 IR site:<corporate-domain>"
+```
+
+### Step 3: PDF URL 抽出
+
+scrape 結果 (markdown) から PDF URL を抽出。LLM reasoning で「最新の決算短信 / 決算説明会資料 / 有価証券報告書」を識別。
+
+`--depth quick` → 最新の 決算短信 + 決算説明会資料 (2 docs)
+`--depth deep` → 直近 4 四半期分 (8 docs まで)
+
+### Step 4: Output manifest
+
+`./manifests/<ticker>-<timestamp>.json` に書き出し (詳細 schema は下記)。
+
+## JP Opt-in: EDINET (`--source edinet` or `EDINET_API_KEY` set)
+
+歴史的な有価証券報告書 / 半期報告書まで網羅したい時に opt-in。要 EDINET API key (https://disclosure2.edinet-fsa.go.jp 経由で無料申請、~1 営業日)。
+
+```bash
+.venv/bin/python scripts/edinet_fetch.py --code <code> --types yuho,shihanki --depth deep --output-dir ./downloads/<code>
+```
+
+対象 docTypeCode: `120` (有価証券報告書), `140` (四半期報告書), `160` (半期報告書)。`EDINET_API_KEY` env var 未設定時はこのパスを skip。
 
 ## Output Format
 
@@ -97,8 +148,9 @@ firecrawl scrape <ir-page-url> --format markdown
 ## Constraints
 
 - **EDGAR**: `User-Agent: <name> <email>` 必須、10 req/sec rate limit
-- **EDINET**: API key 必須、商用利用は別途利用規約確認
-- **TDnet**: 公式 API なし、scrape は html 構造変更で頻繁に壊れる
+- **TDnet (default JP)**: 公式 API なし、yanoshin webapi (https://webapi.yanoshin.jp/) を 3rd-party wrapper として使用。直近 ~30 日のみ retention、それ以前の PDF は release.tdnet.info から消える。release.tdnet.info は default UA を 403 で弾くため browser-like header 必須 (script で対応済)
+- **会社 IR サイト直 scrape (fallback)**: per-company で構造が異なる。`firecrawl` skill 必須 (JS render が要る)。site 改修で URL pattern が breaking change することあり、半年に一度は spot-check
+- **EDINET (opt-in)**: API key 必須、無料申請 ~1 営業日。`EDINET_API_KEY` env var 未設定時はこの path 自体を skip
 - **会社名 lookup**: 完全一致しない時は ambiguity 判定して user に確認求める (例: "Toyota" → TOYOTA MOTOR / Toyota Industries / Toyota Boshoku)
 
 ## Error Handling
