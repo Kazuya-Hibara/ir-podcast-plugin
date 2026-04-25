@@ -121,10 +121,18 @@ def add_sources(notebook_id: str, files: list[Path]) -> None:
 def generate_audio(notebook_id: str, lang: str = "en") -> None:
     """Audio Overview 生成をリクエストし、完了を待つ.
 
-    `--wait` で blocking 実行 (10-30 min). capture=False で progress を user に流す.
+    `generate audio --wait` の internal timeout は 300s で短いので、
+    no-wait で task_id を取得してから `artifact wait --timeout 1800` で polling する.
     """
+    stdout = run_nbl([
+        "generate", "audio",
+        "-n", notebook_id,
+        "--language", lang,
+        "--json",
+    ])
+    task_id = _extract_id(stdout, "task", "artifact", "audio")
     run_nbl(
-        ["generate", "audio", "-n", notebook_id, "--language", lang, "--wait"],
+        ["artifact", "wait", task_id, "-n", notebook_id, "--timeout", "1800"],
         capture=False,
     )
 
