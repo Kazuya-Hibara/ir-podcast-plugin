@@ -23,46 +23,63 @@ def run_nbl(args: list[str], capture: bool = True) -> str:
     """notebooklm CLI を subprocess 実行.
 
     Returns: stdout (capture=True 時)
-
-    TODO: implement
-    1. subprocess.run([NBL_BIN, *args], capture_output=capture, text=True, check=False)
-    2. if returncode != 0: raise RuntimeError with stderr
-    3. return stdout.strip()
     """
-    raise NotImplementedError("run_nbl: stub")
+    if capture:
+        result = subprocess.run(
+            [NBL_BIN, *args], capture_output=True, text=True, check=False
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"notebooklm CLI failed (exit {result.returncode}): {result.stderr.strip()}"
+            )
+        return result.stdout.strip()
+    else:
+        result = subprocess.run([NBL_BIN, *args], check=False)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"notebooklm CLI failed (exit {result.returncode})"
+            )
+        return ""
 
 
 def auth_check() -> bool:
     """`notebooklm auth check --test` で cookie auth が live か確認.
 
     Returns: True if authenticated.
-
-    TODO: implement
-    1. result = subprocess.run([NBL_BIN, 'auth', 'check', '--test'], capture_output=True)
-    2. parse result.stdout for 'authenticated: true' or similar
-    3. return bool
     """
-    raise NotImplementedError("auth_check: stub")
+    try:
+        result = subprocess.run(
+            [NBL_BIN, "auth", "check", "--test"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        raise RuntimeError(
+            "notebooklm CLI not found. Run: pip install notebooklm-py>=0.3.4"
+        )
+    if result.returncode != 0:
+        return False
+    return "authenticated: true" in result.stdout or result.returncode == 0
 
 
 def create_notebook(title: str) -> str:
-    """新しい notebook を作成し ID を返す.
-
-    TODO: implement
-    1. out = run_nbl(['create', '-t', title, '--json'])
-    2. return json.loads(out)['id']
-    """
-    raise NotImplementedError("create_notebook: stub")
+    """新しい notebook を作成し ID を返す."""
+    stdout = run_nbl(["create", "-t", title, "--json"])
+    try:
+        data = json.loads(stdout)
+        return data["id"]
+    except (json.JSONDecodeError, KeyError):
+        raise RuntimeError(
+            f"Failed to parse notebook ID from CLI output: {stdout}"
+        )
 
 
 def add_sources(notebook_id: str, files: list[Path]) -> None:
-    """複数 source file を notebook に追加し、indexing 完了を待つ.
-
-    TODO: implement
-    1. for each f: run_nbl(['source', 'add', '-n', notebook_id, '-f', str(f)])
-    2. run_nbl(['source', 'wait', '-n', notebook_id])
-    """
-    raise NotImplementedError("add_sources: stub")
+    """複数 source file を notebook に追加し、indexing 完了を待つ."""
+    for f in files:
+        run_nbl(["source", "add", "-n", notebook_id, "-f", str(f)])
+    run_nbl(["source", "wait", "-n", notebook_id])
 
 
 def generate_audio(notebook_id: str, lang: str = "en") -> None:
@@ -70,23 +87,16 @@ def generate_audio(notebook_id: str, lang: str = "en") -> None:
 
     Args:
         lang: 'en' / 'ja' / etc.
-
-    TODO: implement
-    1. run_nbl(['generate', 'audio', '-n', notebook_id, '--lang', lang])
-    2. run_nbl(['artifact', 'wait', '-n', notebook_id, '--type', 'audio'])
     """
-    raise NotImplementedError("generate_audio: stub")
+    run_nbl(["generate", "audio", "-n", notebook_id, "--lang", lang])
+    run_nbl(["artifact", "wait", "-n", notebook_id, "--type", "audio"], capture=False)
 
 
 def download_audio(notebook_id: str, output_path: Path) -> Path:
-    """Audio file を local に download.
-
-    TODO: implement
-    1. output_path.parent.mkdir(parents=True, exist_ok=True)
-    2. run_nbl(['download', '-n', notebook_id, '--type', 'audio', '-o', str(output_path)])
-    3. return output_path
-    """
-    raise NotImplementedError("download_audio: stub")
+    """Audio file を local に download."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    run_nbl(["download", "-n", notebook_id, "--type", "audio", "-o", str(output_path)])
+    return output_path
 
 
 def pipeline(

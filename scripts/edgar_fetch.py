@@ -9,8 +9,13 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
+import time
+from pathlib import Path
+
+import httpx
 
 
 # SEC EDGAR User-Agent ポリシー: <Sample Company Name> AdminContact@<sample company domain>.com
@@ -34,16 +39,16 @@ def check_user_agent() -> str:
 
 
 def resolve_cik(ticker: str, user_agent: str) -> str:
-    """Ticker → 10-digit zero-padded CIK.
-
-    TODO: implement
-    1. GET https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=<ticker>&type=10-K
-       with User-Agent header
-    2. parse response (HTML or JSON depending on Accept header)
-    3. extract CIK, zero-pad to 10 digits
-    4. return as string
-    """
-    raise NotImplementedError("resolve_cik: stub")
+    """Ticker → 10-digit zero-padded CIK."""
+    url = "https://www.sec.gov/files/company_tickers.json"
+    resp = httpx.get(url, headers={"User-Agent": user_agent}, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    ticker_upper = ticker.upper()
+    for entry in data.values():
+        if entry["ticker"].upper() == ticker_upper:
+            return str(entry["cik_str"]).zfill(10)
+    raise ValueError(f"Ticker {ticker} not found in SEC EDGAR")
 
 
 def fetch_filings(
@@ -61,17 +66,43 @@ def fetch_filings(
 
     Returns:
         list of {form_type, filing_date, accession_number, primary_document_url, ...}
-
-    TODO: implement
-    1. GET {EDGAR_BASE}/submissions/CIK{cik}.json with User-Agent
-    2. parse recent.filings (form, filingDate, accessionNumber, primaryDocument)
-    3. filter by form_types
-    4. limit by depth (quick=1, deep=4)
-    5. construct primary_document_url:
-       https://www.sec.gov/Archives/edgar/data/{cik_int}/{accession_no_dashes}/{primary_document}
-    6. return list of dicts
     """
-    raise NotImplementedError("fetch_filings: stub")
+    url = f"{EDGAR_BASE}/submissions/CIK{cik}.json"
+    resp = httpx.get(url, headers={"User-Agent": user_agent}, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+
+    recent = data["filings"]["recent"]
+    accessions = recent["accessionNumber"]
+    dates = recent["filingDate"]
+    forms = recent["form"]
+    primary_docs = recent["primaryDocument"]
+
+    limit = 1 if depth == "quick" else 4
+    counts: dict[str, int] = {}
+    results: list[dict] = []
+
+    cik_int = int(cik)
+    for accession, date, form, primary_doc in zip(accessions, dates, forms, primary_docs):
+        if form not in form_types:
+            continue
+        if counts.get(form, 0) >= limit:
+            continue
+        accession_no_dashes = accession.replace("-", "")
+        primary_document_url = (
+            f"https://www.sec.gov/Archives/edgar/data/{cik_int}"
+            f"/{accession_no_dashes}/{primary_doc}"
+        )
+        results.append({
+            "accession_number": accession,
+            "filing_date": date,
+            "form_type": form,
+            "primary_document_url": primary_document_url,
+            "primary_document": primary_doc,
+        })
+        counts[form] = counts.get(form, 0) + 1
+
+    return results
 
 
 def download_documents(
@@ -79,17 +110,45 @@ def download_documents(
     output_dir: str,
     user_agent: str,
 ) -> list[str]:
-    """filing list を並列 download.
+    """filing list を download.
 
     Returns: list of local file paths.
-
-    TODO: implement
-    1. mkdir -p output_dir
-    2. for each filing, download primary_document_url to {output_dir}/{filing_date}-{form_type}.{ext}
-    3. throttle to RATE_LIMIT_PER_SEC
-    4. retry with exponential backoff on 429 / 5xx
     """
-    raise NotImplementedError("download_documents: stub")
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    paths: list[str] = []
+    for filing in filings:
+        url = filing["primary_document_url"]
+        primary_doc = filing["primary_document"]
+        ext = Path(primary_doc).suffix or ".html"
+        form_type_safe = filing["form_type"].replace(" ", "_")
+        filename = f"{filing['filing_date']}-{form_type_safe}{ext}"
+        dest = out / filename
+
+        success = False
+        for attempt in range(3):
+            time.sleep(1 / RATE_LIMIT_PER_SEC)
+            try:
+                resp = httpx.get(url, headers={"User-Agent": user_agent}, timeout=60, follow_redirects=True)
+                if resp.status_code == 200:
+                    dest.write_bytes(resp.content)
+                    paths.append(str(dest.resolve()))
+                    success = True
+                    break
+                elif resp.status_code == 429 or resp.status_code >= 500:
+                    time.sleep(2 ** (attempt + 1))
+                else:
+                    sys.stderr.write(f"WARN: skipping {url} (HTTP {resp.status_code})\n")
+                    break
+            except httpx.RequestError as exc:
+                sys.stderr.write(f"WARN: request error for {url}: {exc}\n")
+                break
+
+        if not success and resp.status_code not in (200,) and resp.status_code not in range(400, 500):
+            sys.stderr.write(f"WARN: failed to download {url} after 3 attempts\n")
+
+    return paths
 
 
 def main() -> int:

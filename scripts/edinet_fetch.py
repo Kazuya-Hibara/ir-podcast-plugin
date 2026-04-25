@@ -13,6 +13,10 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from datetime import date, timedelta
+from pathlib import Path
+
+import httpx
 
 
 API_KEY_ENV = "EDINET_API_KEY"
@@ -45,12 +49,12 @@ def list_documents_for_date(date: str, api_key: str) -> list[dict]:
 
     Args:
         date: 'YYYY-MM-DD'
-
-    TODO: implement
-    1. GET {EDINET_BASE}/documents.json?date={date}&type=2&Subscription-Key={api_key}
-    2. parse results, return list of {docID, docTypeCode, edinetCode, secCode, filerName, ...}
     """
-    raise NotImplementedError("list_documents_for_date: stub")
+    url = f"{EDINET_BASE}/documents.json"
+    params = {"date": date, "type": "2", "Subscription-Key": api_key}
+    resp = httpx.get(url, params=params)
+    resp.raise_for_status()
+    return resp.json().get("results", []) or []
 
 
 def filter_by_company(
@@ -59,15 +63,17 @@ def filter_by_company(
     edinet_code: str | None = None,
     doc_types: list[str] | None = None,
 ) -> list[dict]:
-    """銘柄コード or EDINET コードで filter.
-
-    TODO: implement
-    1. if sec_code: filter docs where secCode == sec_code (注: EDINET は 5 桁の場合あり、4 桁 + '0' 補完が必要なケース)
-    2. if edinet_code: filter by edinetCode
-    3. if doc_types: filter by docTypeCode in [DOC_TYPES[t] for t in doc_types]
-    4. sort by submitDateTime desc
-    """
-    raise NotImplementedError("filter_by_company: stub")
+    """銘柄コード or EDINET コードで filter."""
+    result = documents
+    if sec_code:
+        padded = sec_code + "0" if len(sec_code) == 4 else sec_code
+        result = [d for d in result if d.get("secCode") in (sec_code, padded)]
+    if edinet_code:
+        result = [d for d in result if d.get("edinetCode") == edinet_code]
+    if doc_types:
+        codes = {DOC_TYPES[t] for t in doc_types if t in DOC_TYPES}
+        result = [d for d in result if d.get("docTypeCode") in codes]
+    return sorted(result, key=lambda d: d.get("submitDateTime", ""), reverse=True)
 
 
 def download_document(doc_id: str, output_path: str, api_key: str, doc_type: int = 1) -> str:
@@ -76,13 +82,18 @@ def download_document(doc_id: str, output_path: str, api_key: str, doc_type: int
     Args:
         doc_id: documents.json の docID
         doc_type: 1=PDF, 2=XBRL, 3=ZIP, 4=英文, 5=サマリ
-
-    TODO: implement
-    1. GET {EDINET_BASE}/documents/{doc_id}?type={doc_type}&Subscription-Key={api_key}
-    2. save response body to output_path
-    3. handle 404 (書類取下げ) gracefully
     """
-    raise NotImplementedError("download_document: stub")
+    url = f"{EDINET_BASE}/documents/{doc_id}"
+    params = {"type": doc_type, "Subscription-Key": api_key}
+    resp = httpx.get(url, params=params)
+    if resp.status_code == 404:
+        sys.stderr.write(f"WARN: {doc_id} not found (取下げ済みの可能性)\n")
+        return ""
+    resp.raise_for_status()
+    out = Path(output_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(resp.content)
+    return str(out)
 
 
 def main() -> int:
@@ -127,9 +138,46 @@ def main() -> int:
     if not (args.code or args.edinet_code):
         parser.error("either --code or --edinet-code is required")
 
-    # TODO: 過去 N 日分の documents.json を順に取得 → filter → download
-    # NOTE: EDINET API は date 単位の list 取得 + 個別 doc download の 2 段階
-    raise NotImplementedError("main pipeline: stub")
+    doc_types = [t.strip() for t in args.types.split(",") if t.strip()]
+    cap_per_type = 1 if args.depth == "quick" else 4
+    matched: list[dict] = []
+    counts: dict[str, int] = {DOC_TYPES[t]: 0 for t in doc_types if t in DOC_TYPES}
+
+    today = date.today()
+    for delta in range(args.days):
+        if all(c >= cap_per_type for c in counts.values()) and counts:
+            break
+        d = (today - timedelta(days=delta)).isoformat()
+        try:
+            docs = list_documents_for_date(d, api_key)
+        except httpx.HTTPStatusError as exc:
+            sys.stderr.write(f"WARN: {d} list failed ({exc.response.status_code}), skip\n")
+            continue
+        if not docs:
+            continue
+        filtered = filter_by_company(docs, args.code, args.edinet_code, doc_types)
+        for doc in filtered:
+            code = doc.get("docTypeCode", "")
+            if code not in counts or counts[code] >= cap_per_type:
+                continue
+            matched.append(doc)
+            counts[code] += 1
+
+    out_dir = Path(args.output_dir)
+    saved: list[str] = []
+    for doc in matched:
+        doc_id = doc["docID"]
+        type_code = doc.get("docTypeCode", "0")
+        target = out_dir / f"{doc_id}-{type_code}.pdf"
+        path = download_document(doc_id, target, api_key, doc_type=1)
+        if path:
+            saved.append(path)
+            print(f"saved: {path}")
+        else:
+            sys.stderr.write(f"WARN: {doc_id} not available (404)\n")
+
+    print(f"done: {len(saved)} files in {out_dir}")
+    return 0 if saved else 1
 
 
 if __name__ == "__main__":
