@@ -11,12 +11,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 
-NBL_BIN = "notebooklm"  # CLI installed via `pip install notebooklm-py`
+def _resolve_nbl_bin() -> str:
+    """Locate `notebooklm` CLI. Prefer venv neighbor of sys.executable, else $PATH."""
+    candidate = Path(sys.executable).parent / "notebooklm"
+    if candidate.exists():
+        return str(candidate)
+    found = shutil.which("notebooklm")
+    return found or "notebooklm"
+
+
+NBL_BIN = _resolve_nbl_bin()
 
 
 def run_nbl(args: list[str], capture: bool = True) -> str:
@@ -63,39 +73,66 @@ def auth_check() -> bool:
     return "authenticated: true" in result.stdout or result.returncode == 0
 
 
-def create_notebook(title: str) -> str:
-    """新しい notebook を作成し ID を返す."""
-    stdout = run_nbl(["create", "-t", title, "--json"])
+def _extract_id(stdout: str, *outer_keys: str) -> str:
+    """Parse `{"<outer>": {"id": "..."}}` or `{"id": "..."}` JSON envelope."""
     try:
         data = json.loads(stdout)
+    except json.JSONDecodeError:
+        raise RuntimeError(f"Non-JSON CLI output: {stdout}")
+    for key in outer_keys:
+        if isinstance(data, dict) and key in data and isinstance(data[key], dict):
+            data = data[key]
+            break
+    if isinstance(data, dict) and "id" in data:
         return data["id"]
-    except (json.JSONDecodeError, KeyError):
-        raise RuntimeError(
-            f"Failed to parse notebook ID from CLI output: {stdout}"
-        )
+    raise RuntimeError(f"No id in CLI output: {stdout}")
+
+
+def create_notebook(title: str) -> str:
+    """新しい notebook を作成し ID を返す."""
+    return _extract_id(run_nbl(["create", title, "--json"]), "notebook")
+
+
+def _mime_for(path: Path) -> str:
+    ext = path.suffix.lower()
+    return {
+        ".pdf": "application/pdf",
+        ".html": "text/html",
+        ".htm": "text/html",
+        ".txt": "text/plain",
+        ".md": "text/markdown",
+    }.get(ext, "application/octet-stream")
 
 
 def add_sources(notebook_id: str, files: list[Path]) -> None:
     """複数 source file を notebook に追加し、indexing 完了を待つ."""
     for f in files:
-        run_nbl(["source", "add", "-n", notebook_id, "-f", str(f)])
-    run_nbl(["source", "wait", "-n", notebook_id])
+        stdout = run_nbl([
+            "source", "add", str(f),
+            "-n", notebook_id,
+            "--type", "file",
+            "--mime-type", _mime_for(f),
+            "--json",
+        ])
+        source_id = _extract_id(stdout, "source")
+        run_nbl(["source", "wait", source_id, "-n", notebook_id, "--timeout", "600"])
 
 
 def generate_audio(notebook_id: str, lang: str = "en") -> None:
     """Audio Overview 生成をリクエストし、完了を待つ.
 
-    Args:
-        lang: 'en' / 'ja' / etc.
+    `--wait` で blocking 実行 (10-30 min). capture=False で progress を user に流す.
     """
-    run_nbl(["generate", "audio", "-n", notebook_id, "--lang", lang])
-    run_nbl(["artifact", "wait", "-n", notebook_id, "--type", "audio"], capture=False)
+    run_nbl(
+        ["generate", "audio", "-n", notebook_id, "--language", lang, "--wait"],
+        capture=False,
+    )
 
 
 def download_audio(notebook_id: str, output_path: Path) -> Path:
     """Audio file を local に download."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    run_nbl(["download", "-n", notebook_id, "--type", "audio", "-o", str(output_path)])
+    run_nbl(["download", "audio", str(output_path), "-n", notebook_id, "--latest", "--force"])
     return output_path
 
 
