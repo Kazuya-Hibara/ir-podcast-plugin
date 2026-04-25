@@ -1,6 +1,6 @@
 # Codex Plugin 対応
 
-この repo は Claude Code plugin と Codex plugin の両方で使える構成にできる。Codex 側で必要なのは `.codex-plugin/plugin.json` と `skills/` で、既存の `scripts/` はそのまま共通利用する。
+この repo は Claude Code plugin と Codex plugin の両方で使える。Codex 側で必要なのは `.agents/plugins/marketplace.json`、`.codex-plugin/plugin.json`、`skills/` で、既存の `scripts/` はそのまま共通利用する。
 
 ## 追加したもの
 
@@ -8,6 +8,9 @@
   - Codex plugin manifest
   - `skills: "./skills/"` で `ir-podcast` / `ir-research` skill を公開
   - Codex UI 用の `interface` metadata と starter prompt を定義
+- `.agents/plugins/marketplace.json`
+  - `codex plugin marketplace add Kazuya-Hibara/ir-podcast-plugin` で読まれる marketplace 定義
+  - repo root 自体を plugin root として参照する
 
 ## Claude 版との違い
 
@@ -33,27 +36,41 @@ AAPLの最新IRをpodcast化して。ir-podcast skillを使って。
 
 ## インストール方法
 
-ローカル plugin として使う場合:
+GitHub marketplace として追加:
 
 ```bash
-mkdir -p ~/plugins
-ln -s /path/to/ir-podcast-plugin ~/plugins/ir-podcast-plugin
+codex plugin marketplace add Kazuya-Hibara/ir-podcast-plugin
 ```
 
-`~/.agents/plugins/marketplace.json` に追加:
+追加後、Codex の Plugins 画面で `IR Podcast` を install/enable する。
+
+CLI 設定で直接有効化する場合:
+
+```toml
+[plugins."ir-podcast-plugin@ir-podcast"]
+enabled = true
+```
+
+ローカル checkout から marketplace を追加する場合:
+
+```bash
+codex plugin marketplace add /path/to/ir-podcast-plugin
+```
+
+この repo の `.agents/plugins/marketplace.json` は次の形になっている:
 
 ```json
 {
-  "name": "local",
+  "name": "ir-podcast",
   "interface": {
-    "displayName": "Local"
+    "displayName": "IR Podcast"
   },
   "plugins": [
     {
       "name": "ir-podcast-plugin",
       "source": {
         "source": "local",
-        "path": "./plugins/ir-podcast-plugin"
+        "path": "."
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -65,7 +82,7 @@ ln -s /path/to/ir-podcast-plugin ~/plugins/ir-podcast-plugin
 }
 ```
 
-この repo を marketplace repo として配布する場合は、repo root 側の `.agents/plugins/marketplace.json` に同じ plugin entry を置く。
+`path: "."` にしているのは、この repository の root がそのまま plugin root (`.codex-plugin/`, `skills/`, `scripts/` を含む場所) だから。
 
 ## 依存セットアップ
 

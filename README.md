@@ -23,6 +23,8 @@
 ```
 ir-podcast-plugin/
 ├── .claude-plugin/        # Plugin manifest (plugin.json + marketplace.json)
+├── .codex-plugin/         # Codex plugin manifest
+├── .agents/plugins/       # Codex marketplace definition
 ├── skills/
 │   ├── ir-podcast/        # End-to-end orchestrator
 │   └── ir-research/       # Audio skip 版
@@ -41,7 +43,20 @@ ir-podcast-plugin/
 
 ### Codex plugin として使う場合
 
-Codex 版 manifest は `.codex-plugin/plugin.json` に追加済み。Codex では Claude Code の `commands/*.md` はそのまま slash command としては動かないため、自然言語または skill 指定で起動する。
+Codex 版 manifest は `.codex-plugin/plugin.json`、marketplace 定義は `.agents/plugins/marketplace.json` に追加済み。
+
+```bash
+codex plugin marketplace add Kazuya-Hibara/ir-podcast-plugin
+```
+
+追加後、Codex の Plugins 画面で `IR Podcast` を install/enable する。CLI 設定で直接有効化する場合は `~/.codex/config.toml` に次を追加する。
+
+```toml
+[plugins."ir-podcast-plugin@ir-podcast"]
+enabled = true
+```
+
+Codex では Claude Code の `commands/*.md` はそのまま slash command としては動かないため、自然言語または skill 指定で起動する。
 
 ```text
 AAPLの最新IRをpodcast化して。ir-podcast skillを使って。
@@ -160,7 +175,7 @@ v0.2.0 (現在) — Apple + サイバーエージェント live verify 経由の
 - [x] `~/.local/bin` pipx fallback で notebooklm CLI PATH resolution 強化
 - [x] `scripts/html_to_md.py` BS4 fallback、`scripts/ir_site_fetch.py` Firecrawl 版
 - [x] `scripts/test_nbl_pipeline.py` で envelope drift を unit test 化
-- [x] Codex plugin manifest (`.codex-plugin/plugin.json`) 同梱
+- [x] Codex plugin manifest (`.codex-plugin/plugin.json`) + marketplace (`.agents/plugins/marketplace.json`) 同梱
 
 v0.3.0 (予定):
 - 前回 podcast との差分検出 (新規開示のみ podcast 化)
