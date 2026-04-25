@@ -1,0 +1,43 @@
+{
+  "name": "ir-podcast-plugin",
+  "version": "0.1.0",
+  "description": "IR資料 (10-K/10-Q/有報/決算短信) をNotebookLMのAudio Overview (podcast) に自動変換するCodex plugin。米国(SEC EDGAR)・日本(EDINET)対応。",
+  "author": {
+    "name": "Kazuya-Hibara",
+    "url": "https://github.com/Kazuya-Hibara"
+  },
+  "homepage": "https://github.com/Kazuya-Hibara/ir-podcast-plugin",
+  "repository": "https://github.com/Kazuya-Hibara/ir-podcast-plugin",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "notebooklm",
+    "ir",
+    "investor-relations",
+    "podcast",
+    "edgar",
+    "edinet",
+    "audio-overview",
+    "business-study"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "IR Podcast",
+    "shortDescription": "IR資料をNotebookLM podcast化",
+    "longDescription": "上場企業のIR資料をSEC EDGARまたはEDINETから取得し、NotebookLM Audio Overviewでpodcast化します。音声化をスキップして構造化サマリだけ作るIR research用途にも使えます。",
+    "developerName": "Kazuya-Hibara",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Run"
+    ],
+    "websiteURL": "https://github.com/Kazuya-Hibara/ir-podcast-plugin",
+    "brandColor": "#2563EB",
+    "defaultPrompt": [
+      "AAPLの最新IRをpodcast化して",
+      "7203のIR資料を日本語で音声化して",
+      "MSFTのIRサマリだけ作って"
+    ]
+  }
+}
