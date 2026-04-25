@@ -68,7 +68,7 @@ Claude Code 内で:
 #### 2. 依存セットアップ
 
 ```bash
-cd ~/.claude/plugins/cache/ir-podcast/ir-podcast-plugin/0.1.0
+cd ~/.claude/plugins/cache/ir-podcast/ir-podcast-plugin/0.2.0
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/playwright install chromium
@@ -147,18 +147,26 @@ Optional:
 
 ## ロードマップ
 
-v0.1.0 (現在):
+v0.1.0:
 - [x] Plugin scaffold (skills + agents + commands + manifests)
 - [x] Python script 本体実装 (`scripts/edgar_fetch.py`, `edinet_fetch.py`, `nbl_pipeline.py`)
 - [x] EDGAR live verify (AAPL → CIK 0000320193 → 10-K/10-Q URL 取得)
-- [x] TDnet live verify (7203 Toyota → 510 KB PDF、yanoshin webapi + browser-header httpx)
-- [ ] EDINET live verify (opt-in、要 API key)
-- [x] NotebookLM E2E smoke (AAPL 10-K → 21 MB m4a "Apple's 416 Billion Dollar Empire Under Siege"、生成 ~20 min)
+- [x] NotebookLM E2E smoke (AAPL 10-K → 21 MB m4a、生成 ~20 min)
 
-v0.2.0 (予定):
+v0.2.0 (現在) — Apple + サイバーエージェント live verify 経由の安定化リリース:
+- [x] JP 3-tier routing (TDnet → Firecrawl IR site → EDINET opt-in)、auth-free path で 4751 サイバー .wav 完走
+- [x] `nbl_pipeline.py` `--resume` flag + state file (`<output>.state.json`) で 300s CLI timeout を bypass
+- [x] `_extract_id` parser が 3 envelope shape (nested / top-level id / flat snake_case) 対応
+- [x] `~/.local/bin` pipx fallback で notebooklm CLI PATH resolution 強化
+- [x] `scripts/html_to_md.py` BS4 fallback、`scripts/ir_site_fetch.py` Firecrawl 版
+- [x] `scripts/test_nbl_pipeline.py` で envelope drift を unit test 化
+- [x] Codex plugin manifest (`.codex-plugin/plugin.json`) 同梱
+
+v0.3.0 (予定):
 - 前回 podcast との差分検出 (新規開示のみ podcast 化)
 - Slack / Discord 通知
 - 統合報告書 (Annual Report) の自動分割 (NotebookLM の 200 MB 上限対応)
+- EDINET live verify (opt-in、要 API key)
 
 v1.0.0 (将来):
 - 韓国 (DART) / 香港 (HKEX) 対応
