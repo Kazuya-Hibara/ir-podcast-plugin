@@ -55,8 +55,11 @@ NotebookLM Audio Overview の音声言語。
 `ir-podcast` skill が発火し、以下を順次実行:
 
 1. Company Resolution (ticker → CIK or 証券コード)
-2. `ir-source-discovery` agent → IR doc URL list
-3. `scripts/edgar_fetch.py` or `edinet_fetch.py` → 実 file download
+2. `ir-source-discovery` agent → IR doc URL list (manifest JSON)
+3. Document download:
+   - US: `scripts/edgar_fetch.py` (EDGAR API)
+   - JP (default): `scripts/ir_site_fetch.py` (会社 IR サイト直 DL、key 不要)
+   - JP (optional): `scripts/edinet_fetch.py` (`EDINET_API_KEY` set 時のみ)
 4. `ir-document-analyzer` agent → 章立て抽出 + サイズ最適化
 5. `notebooklm create` + `source add` → NotebookLM upload
 6. `notebooklm generate audio --lang <lang>` → Audio Overview 生成
@@ -75,7 +78,8 @@ NotebookLM Audio Overview の音声言語。
 1. `pip install -r requirements.txt && playwright install chromium`
 2. `notebooklm login` (Google アカウント認証)
 3. `export EDGAR_USER_AGENT="<name> <email>"` (US 利用時)
-4. `export EDINET_API_KEY="<key>"` (JP 利用時)
+4. `firecrawl --version` で CLI が install 済み確認 (JP 直 DL に必須)
+5. `export EDINET_API_KEY="<key>"` — **optional**。JP fallback として使う場合のみ。default 経路では不要
 
 詳細: `docs/INSTALL.md` + `docs/AUTH.md`
 

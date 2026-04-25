@@ -38,8 +38,11 @@ Agent({
 ### Step 3: Document Download
 取得した URL list から実 file を download。
 
-- US: `python scripts/edgar_fetch.py --cik <CIK> --types 10-K,10-Q,8-K --depth <quick|deep>`
-- JP: `python scripts/edinet_fetch.py --code <4-digit> --types yuho,kessan-tanshin --depth <quick|deep>`
+- US: `python scripts/edgar_fetch.py --cik <CIK> --types 10-K,10-Q,8-K --depth <quick|deep>` (EDGAR API 経由、`EDGAR_USER_AGENT` のみ必要)
+- JP (default): `python scripts/ir_site_fetch.py --manifest ./manifests/<ticker>-<ts>.json --output-dir ./downloads/` (会社 IR サイト直 DL、API key 不要)
+- JP (optional fallback): `python scripts/edinet_fetch.py --code <4-digit> --types yuho,kessan-tanshin --depth <quick|deep>` ⇒ `EDINET_API_KEY` env var が **set されている時のみ** activate
+
+JP は ir-source-discovery agent が manifest JSON を吐くので、`ir_site_fetch.py` は manifest を消費して PDF を全件 DL する薄い wrapper。
 
 Output: `./downloads/<ticker>/<date>-<type>.{pdf,html}`
 
@@ -82,8 +85,9 @@ terminal-notifier -title "IR Podcast Ready" -message "<ticker> <date> (<duration
 実行前に以下を確認 (失敗時は早期 exit + 修復手順案内):
 
 1. `notebooklm auth check --test` — cookie auth が live か (失効してたら `notebooklm login` 案内)
-2. `python scripts/edgar_fetch.py --check` — `EDGAR_USER_AGENT` env var 設定済みか
-3. `python scripts/edinet_fetch.py --check` — `EDINET_API_KEY` env var 設定済みか (JP 利用時のみ)
+2. US 利用時: `python scripts/edgar_fetch.py --check` — `EDGAR_USER_AGENT` env var 設定済みか
+3. JP 利用時: `firecrawl --version` — Firecrawl CLI が install 済みか (会社 IR サイト直 DL に必須)
+4. JP optional: `python scripts/edinet_fetch.py --check` — `EDINET_API_KEY` 未設定なら skip (default 経路では不要)
 
 ## Output
 
@@ -95,7 +99,8 @@ terminal-notifier -title "IR Podcast Ready" -message "<ticker> <date> (<duration
 
 - **NotebookLM cookie auth** は不安定 (上流 memo に警告あり)。失効したら `notebooklm login` で再認証
 - **SEC EDGAR rate limit**: 10 req/sec。`EDGAR_USER_AGENT` env var 必須 (`<your-name> <your-email>` 形式)
-- **EDINET API key**: 無料登録が必要 (https://disclosure2.edinet-fsa.go.jp の利用申請)
+- **JP 直 DL**: `firecrawl` CLI が必要 (会社 IR サイトは大半が JS-rendered)。会社 IR ページの URL pattern は per-company で異なるので agent の reasoning に依存
+- **EDINET API key (optional)**: JP の fallback として使う場合のみ必要。利用申請は https://disclosure2.edinet-fsa.go.jp で数営業日。default 経路では不要
 - **NotebookLM source 上限**: 50 sources / notebook、各 200MB / 500K words 上限
 - **並列実行**: `--parallel N` で N=3 まで推奨 (NotebookLM 側の rate limit 配慮)
 

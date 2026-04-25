@@ -1,0 +1,45 @@
+{
+  "ticker": "4751",
+  "company": "株式会社サイバーエージェント",
+  "market": "JP",
+  "discovered_at": "2026-04-25T20:45:00+09:00",
+  "discovery_method": "firecrawl-direct-ir-site",
+  "sources": [
+    {
+      "type": "kessan-tanshin-2026Q1",
+      "date": "2026-02",
+      "language": "ja",
+      "url": "https://pdf.cyberagent.co.jp/C4751/YpwX/EAuU/siYO.pdf",
+      "title": "2026年9月期 第1四半期決算短信[日本基準](連結)",
+      "size_estimate_kb": 584,
+      "source": "company-IR-direct"
+    },
+    {
+      "type": "kessan-setsumeikai-2026Q1",
+      "date": "2026-02",
+      "language": "ja",
+      "url": "https://pdf.cyberagent.co.jp/C4751/YpwX/HnZd/rtMV.pdf",
+      "title": "2026年9月期 第1四半期 決算説明会資料",
+      "size_estimate_kb": 2916,
+      "source": "company-IR-direct"
+    },
+    {
+      "type": "kessan-tanshin-2025FY",
+      "date": "2025-11",
+      "language": "ja",
+      "url": "https://pdf.cyberagent.co.jp/C4751/lAG8/ELbd/HDw5.pdf",
+      "title": "2025年9月期 決算短信[日本基準](連結)",
+      "size_estimate_kb": 797,
+      "source": "company-IR-direct"
+    },
+    {
+      "type": "kessan-setsumeikai-2025FY",
+      "date": "2025-11",
+      "language": "ja",
+      "url": "https://pdf.cyberagent.co.jp/C4751/lAG8/r7Us/tMHN.pdf",
+      "title": "2025年9月期 通期 決算説明会資料",
+      "size_estimate_kb": 3769,
+      "source": "company-IR-direct"
+    }
+  ]
+}
