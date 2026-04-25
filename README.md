@@ -57,28 +57,33 @@ AAPLの最新IRをpodcast化して。ir-podcast skillを使って。
 Claude Code 内で:
 
 ```
-/plugin marketplace add https://github.com/Kazuya-Hibara/ir-podcast-plugin
-/plugin install ir-podcast-plugin
+/plugin marketplace add Kazuya-Hibara/ir-podcast-plugin
+/plugin install ir-podcast-plugin@ir-podcast
 ```
+
+> ⚠️ Install 後、**Claude Code を一度 restart** (`/exit` → 再起動) すると `/ir-podcast` 等の slash command が `/help` に表示される。
 
 #### 2. 依存セットアップ
 
 ```bash
-cd ~/.claude/plugins/marketplaces/ir-podcast/ir-podcast-plugin
-pip install -r requirements.txt
-playwright install chromium
-notebooklm login   # Google アカウントで NotebookLM 認証
+cd ~/.claude/plugins/cache/ir-podcast/ir-podcast-plugin/0.1.0
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/playwright install chromium
+.venv/bin/notebooklm login   # Google アカウントで NotebookLM 認証 (browser OAuth)
 ```
 
 #### 3. API キー設定
 
 ```bash
-# ~/.zshrc
-export EDGAR_USER_AGENT="Your Name your@email.com"   # SEC EDGAR ポリシー (必須)
-export EDINET_API_KEY="your-key"                     # EDINET (JP 利用時のみ)
+# ~/.zshrc に追加
+export EDGAR_USER_AGENT="<Your Name> <your@email.com>"   # 必須: SEC fair-use policy
+export EDINET_API_KEY="<your-key>"                       # EDINET (JP 利用時のみ)
 ```
 
-EDINET API key は https://disclosure2.edinet-fsa.go.jp で無料申請。
+> ⚠️ `EDGAR_USER_AGENT` には **必ず自分の名前と email** を入れる。これは SEC が連絡可能な identifier を要求するポリシーで、他人の email を流用すると レート制限/ban が本人に飛ぶ。
+>
+> EDINET API key は https://disclosure2.edinet-fsa.go.jp で無料申請。
 
 詳細: [docs/INSTALL.md](docs/INSTALL.md) / [docs/AUTH.md](docs/AUTH.md)
 
@@ -88,7 +93,7 @@ EDINET API key は https://disclosure2.edinet-fsa.go.jp で無料申請。
 /ir-podcast AAPL
 ```
 
-5-10 分後、`~/Downloads/ir-podcasts/AAPL-<date>.wav` が生成される。
+15-25 分後、`~/Downloads/ir-podcasts/AAPL-<date>.mp3` が生成される (実態は MPEG-4 audio container)。
 
 ## 使用例
 

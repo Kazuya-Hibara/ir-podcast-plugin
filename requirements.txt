@@ -11,6 +11,10 @@ PyYAML>=6.0,<7.0
 # Date parsing (filing dates, EDINET 日付フォーマット)
 python-dateutil>=2.9,<3.0
 
+# HTML parsing fallback (scripts/html_to_md.py 用、defuddle skill 未 install 時)
+# 注: lxml は不要、stdlib html.parser を使用
+beautifulsoup4>=4.12,<5.0
+
 # 注意:
 # - playwright は notebooklm-py[browser] extra で install される
 # - 別途 `playwright install chromium` で browser binary を取得
