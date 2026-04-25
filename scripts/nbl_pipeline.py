@@ -74,17 +74,28 @@ def auth_check() -> bool:
 
 
 def _extract_id(stdout: str, *outer_keys: str) -> str:
-    """Parse `{"<outer>": {"id": "..."}}` or `{"id": "..."}` JSON envelope."""
+    """Parse id from CLI JSON output. Handles three envelope shapes:
+
+    - `{"<outer>": {"id": "..."}}` (nested object)
+    - `{"id": "..."}` (top-level id)
+    - `{"<outer>_id": "..."}` (flat snake_case, e.g. `{"task_id": "..."}`)
+    """
     try:
         data = json.loads(stdout)
     except json.JSONDecodeError:
         raise RuntimeError(f"Non-JSON CLI output: {stdout}")
+    original = data
     for key in outer_keys:
         if isinstance(data, dict) and key in data and isinstance(data[key], dict):
             data = data[key]
             break
     if isinstance(data, dict) and "id" in data:
         return data["id"]
+    if isinstance(original, dict):
+        for key in outer_keys:
+            flat = f"{key}_id"
+            if flat in original and isinstance(original[flat], str):
+                return original[flat]
     raise RuntimeError(f"No id in CLI output: {stdout}")
 
 
