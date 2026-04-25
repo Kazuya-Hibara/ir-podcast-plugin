@@ -39,7 +39,20 @@ ir-podcast-plugin/
 
 ## Quick Start
 
-### 1. Install
+### Codex plugin として使う場合
+
+Codex 版 manifest は `.codex-plugin/plugin.json` に追加済み。Codex では Claude Code の `commands/*.md` はそのまま slash command としては動かないため、自然言語または skill 指定で起動する。
+
+```text
+AAPLの最新IRをpodcast化して。ir-podcast skillを使って。
+7203のIR資料を取得して構造化サマリだけ作って。ir-research skillを使って。
+```
+
+詳細: [docs/CODEX.md](docs/CODEX.md)
+
+### Claude Code plugin として使う場合
+
+#### 1. Install
 
 Claude Code 内で:
 
@@ -48,7 +61,7 @@ Claude Code 内で:
 /plugin install ir-podcast-plugin
 ```
 
-### 2. 依存セットアップ
+#### 2. 依存セットアップ
 
 ```bash
 cd ~/.claude/plugins/marketplaces/ir-podcast/ir-podcast-plugin
@@ -57,7 +70,7 @@ playwright install chromium
 notebooklm login   # Google アカウントで NotebookLM 認証
 ```
 
-### 3. API キー設定
+#### 3. API キー設定
 
 ```bash
 # ~/.zshrc
@@ -69,7 +82,7 @@ EDINET API key は https://disclosure2.edinet-fsa.go.jp で無料申請。
 
 詳細: [docs/INSTALL.md](docs/INSTALL.md) / [docs/AUTH.md](docs/AUTH.md)
 
-### 4. 実行
+#### 4. 実行
 
 ```
 /ir-podcast AAPL
@@ -128,8 +141,10 @@ Optional:
 
 v0.1.0 (現在):
 - [x] Plugin scaffold (skills + agents + commands + manifests)
-- [ ] Python script 本体実装 (現在 stub)
-- [ ] 動作確認 (実 NotebookLM 認証 + EDGAR / EDINET API)
+- [x] Python script 本体実装 (`scripts/edgar_fetch.py`, `edinet_fetch.py`, `nbl_pipeline.py`)
+- [x] EDGAR live verify (AAPL → CIK 0000320193 → 10-K/10-Q URL 取得)
+- [ ] EDINET live verify (要 API key)
+- [ ] NotebookLM E2E smoke (`/ir-podcast AAPL --depth quick`)
 
 v0.2.0 (予定):
 - TDnet (適時開示) 取得
