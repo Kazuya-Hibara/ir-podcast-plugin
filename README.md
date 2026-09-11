@@ -1,5 +1,7 @@
 # ir-podcast-plugin
 
+_現状: 自作の Claude Code plugin。個人利用ベースで公開しています。_
+
 > 上場企業のIR資料 (10-K / 10-Q / 有価証券報告書 / 決算短信) を NotebookLM の Audio Overview で **podcast 化** する Claude Code plugin。歩きながら / 通勤中に passive listening でビジネス勉強。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
